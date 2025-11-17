@@ -1,0 +1,2 @@
+# tool_azure_compute_gallery_copy
+AzureComputeGalleryを別サブスクリプションへ全てコピーするスクリプト
