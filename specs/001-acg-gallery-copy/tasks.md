@@ -14,15 +14,15 @@ Branch: `001-acg-gallery-copy`
 
 ## Phase 2: Foundational
 
-- [ ] T006 Implement `AzureContext` model per data model in `src/AzureComputeGalleryCopy/Models/AzureContext.cs`
-- [ ] T007 Implement `FilterCriteria` and `MatchMode` per data model in `src/AzureComputeGalleryCopy/Models/FilterCriteria.cs`
-- [ ] T008 Implement configuration models (`ToolConfiguration`, `AuthenticationConfiguration`) in `src/AzureComputeGalleryCopy/Models/ToolConfiguration.cs`
-- [ ] T009 Implement configuration loading (file/env/CLI precedence) in `src/AzureComputeGalleryCopy/Configuration/ConfigurationLoader.cs`
-- [ ] T010 Implement configuration validation (same tenant, name rules) in `src/AzureComputeGalleryCopy/Validation/ConfigurationValidator.cs`
-- [ ] T011 Implement WebView2 MSAL Interactive auth service in `src/AzureComputeGalleryCopy/Services/Authentication/WebView2Authenticator.cs`
-- [ ] T012 Setup logging builder + formatting (levels, stdout/stderr) in `src/AzureComputeGalleryCopy/Logging/LoggerFactoryBuilder.cs`
-- [ ] T013 Wire DI container and root command host in `src/AzureComputeGalleryCopy/Program.cs`
-- [ ] T014 [P] Create test utilities for configuration in `tests/AzureComputeGalleryCopy.Tests/TestHelpers/ConfigurationBuilderHelper.cs`
+- [x] T006 Implement `AzureContext` model per data model in `src/AzureComputeGalleryCopy/Models/AzureContext.cs`
+- [x] T007 Implement `FilterCriteria` and `MatchMode` per data model in `src/AzureComputeGalleryCopy/Models/FilterCriteria.cs`
+- [x] T008 Implement configuration models (`ToolConfiguration`, `AuthenticationConfiguration`) in `src/AzureComputeGalleryCopy/Models/ToolConfiguration.cs`
+- [x] T009 Implement configuration loading (file/env/CLI precedence) in `src/AzureComputeGalleryCopy/Configuration/ConfigurationLoader.cs`
+- [x] T010 Implement configuration validation (same tenant, name rules) in `src/AzureComputeGalleryCopy/Validation/ConfigurationValidator.cs`
+- [x] T011 Implement WebView2 MSAL Interactive auth service in `src/AzureComputeGalleryCopy/Services/Authentication/WebView2Authenticator.cs`
+- [x] T012 Setup logging builder + formatting (levels, stdout/stderr) in `src/AzureComputeGalleryCopy/Logging/LoggerFactoryBuilder.cs`
+- [x] T013 Wire DI container and root command host in `src/AzureComputeGalleryCopy/Program.cs`
+- [x] T014 [P] Create test utilities for configuration in `tests/AzureComputeGalleryCopy.Tests/TestHelpers/ConfigurationBuilderHelper.cs`
 
 ## Phase 3: User Story 1 (P1) — 全イメージの一括コピー
 
