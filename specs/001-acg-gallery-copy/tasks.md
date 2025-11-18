@@ -6,11 +6,11 @@ Branch: `001-acg-gallery-copy`
 
 ## Phase 1: Setup
 
-- [ ] T001 Create solution and CLI project scaffolding in `src/AzureComputeGalleryCopy/AzureComputeGalleryCopy.csproj`
-- [ ] T002 Add central props for .NET 10 and nullable in `src/Directory.Build.props`
-- [ ] T003 Add NuGet package references (Azure.Identity, Azure.ResourceManager.Compute, Microsoft.Identity.Client.Extensions.Msal, Microsoft.Web.WebView2, Microsoft.Extensions.Configuration.*, Microsoft.Extensions.Logging.*, System.CommandLine) in `src/AzureComputeGalleryCopy/AzureComputeGalleryCopy.csproj`
-- [ ] T004 Seed example appsettings from contract in `src/AzureComputeGalleryCopy/appsettings.example.json`
-- [ ] T005 Initialize test projects (NUnit, Moq) in `tests/AzureComputeGalleryCopy.Tests/AzureComputeGalleryCopy.Tests.csproj`
+- [x] T001 Create solution and CLI project scaffolding in `src/AzureComputeGalleryCopy/AzureComputeGalleryCopy.csproj`
+- [x] T002 Add central props for .NET 10 and nullable in `src/Directory.Build.props`
+- [x] T003 Add NuGet package references (Azure.Identity, Azure.ResourceManager.Compute, Microsoft.Identity.Client.Extensions.Msal, Microsoft.Web.WebView2, Microsoft.Extensions.Configuration.*, Microsoft.Extensions.Logging.*, System.CommandLine) in `src/AzureComputeGalleryCopy/AzureComputeGalleryCopy.csproj`
+- [x] T004 Seed example appsettings from contract in `src/AzureComputeGalleryCopy/appsettings.example.json`
+- [x] T005 Initialize test projects (NUnit, Moq) in `tests/AzureComputeGalleryCopy.Tests/AzureComputeGalleryCopy.Tests.csproj`
 
 ## Phase 2: Foundational
 
