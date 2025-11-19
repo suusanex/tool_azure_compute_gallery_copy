@@ -91,7 +91,7 @@ public class GalleryCopyService : IGalleryCopyService
                 }
 
                 // ターゲットのイメージ定義を作成または取得
-                var targetImageDef = await GetOrCreateImageDefinitionAsync(
+                var (targetImageDef, targetImageDefExists) = await GetOrCreateImageDefinitionAsync(
                     sourceImageDef, targetGallery, isDryRun, operations);
 
                 if (targetImageDef == null)
@@ -112,7 +112,7 @@ public class GalleryCopyService : IGalleryCopyService
                         continue;
                     }
 
-                    await CopyImageVersionAsync(sourceVersion, targetImageDef, isDryRun, operations);
+                    await CopyImageVersionAsync(sourceVersion, targetImageDef, targetImageDefExists, isDryRun, operations);
                 }
             }
 
@@ -139,7 +139,8 @@ public class GalleryCopyService : IGalleryCopyService
     /// ソースのイメージ定義をターゲットに作成またはチェック
     /// 不整合がある場合はスキップ
     /// </summary>
-    private async Task<GalleryImageResource?> GetOrCreateImageDefinitionAsync(
+    /// <returns>タプル: (ターゲットイメージ定義リソースまたはソース, ターゲットに既存か)</returns>
+    private async Task<(GalleryImageResource? imageResource, bool existsInTarget)> GetOrCreateImageDefinitionAsync(
         GalleryImageResource sourceImageDef,
         GalleryResource targetGallery,
         bool isDryRun,
@@ -174,7 +175,7 @@ public class GalleryCopyService : IGalleryCopyService
                     EndTime = DateTimeOffset.UtcNow
                 });
 
-                return targetImageDef;
+                return (targetImageDef, true);
             }
 
             // イメージ定義を作成
@@ -233,7 +234,7 @@ public class GalleryCopyService : IGalleryCopyService
                     EndTime = DateTimeOffset.UtcNow
                 });
 
-                return result.Value;
+                return (result.Value, false);
             }
             else
             {
@@ -249,7 +250,8 @@ public class GalleryCopyService : IGalleryCopyService
                     EndTime = DateTimeOffset.UtcNow
                 });
 
-                return sourceImageDef; // ドライラン時はソースを返す
+                // ドライラン時はソースを返すが、ターゲットには存在しない扱い
+                return (sourceImageDef, false);
             }
         }
         catch (Exception ex)
@@ -269,7 +271,7 @@ public class GalleryCopyService : IGalleryCopyService
                 EndTime = DateTimeOffset.UtcNow
             });
 
-            return null;
+            return (null, false);
         }
     }
 
@@ -280,6 +282,7 @@ public class GalleryCopyService : IGalleryCopyService
     private async Task CopyImageVersionAsync(
         GalleryImageVersionResource sourceVersion,
         GalleryImageResource targetImageDef,
+        bool targetImageDefExists,
         bool isDryRun,
         List<CopyOperation> operations)
     {
@@ -289,7 +292,12 @@ public class GalleryCopyService : IGalleryCopyService
 
         try
         {
-            var versionExists = await _queryService.ImageVersionExistsAsync(targetImageDef, versionName);
+            // ドライラン時で定義が新規作成予定の場合、バージョンも存在しない扱い
+            bool versionExists = false;
+            if (targetImageDefExists)
+            {
+                versionExists = await _queryService.ImageVersionExistsAsync(targetImageDef, versionName);
+            }
 
             if (versionExists)
             {
