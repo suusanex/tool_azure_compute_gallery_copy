@@ -13,6 +13,8 @@ using AzureComputeGalleryCopy.Validation;
 using AzureComputeGalleryCopy.Services.Gallery;
 using AzureComputeGalleryCopy.Cli;
 using AzureComputeGalleryCopy.Cli.Output;
+using AzureComputeGalleryCopy.Cli.List;
+using AzureComputeGalleryCopy.Cli.Validate;
 using Azure.Identity;
 
 namespace AzureComputeGalleryCopy;
@@ -70,6 +72,9 @@ class Program
             // T025: Filter matcher service
             services.AddSingleton<IFilterMatcher, FilterMatcher>();
             
+            // T037: Operation logger
+            services.AddSingleton<IOperationLogger, OperationLogger>();
+            
             // T020, T021: Gallery services DI登録
             services.AddSingleton<IGalleryClientFactory, GalleryClientFactory>();
             services.AddSingleton<IGalleryQueryService, GalleryQueryService>();
@@ -77,6 +82,12 @@ class Program
             services.AddSingleton<CopyCommand>();
             services.AddSingleton<SummaryPrinter>();
             services.AddSingleton<DryRunPrinter>();
+            
+            // T033-T036: List and validate commands
+            services.AddSingleton<ListGalleriesCommand>();
+            services.AddSingleton<ListImagesCommand>();
+            services.AddSingleton<ListVersionsCommand>();
+            services.AddSingleton<ValidateCommand>();
 
             var serviceProvider = services.BuildServiceProvider();
 
@@ -85,6 +96,17 @@ class Program
             // T020: CLI root command setup
             var rootCommand = new RootCommand("Azure Compute Gallery Cross-Subscription Copy Tool");
             
+            // T039: Version option
+            var versionOption = AzureComputeGalleryCopy.Cli.VersionOption.CreateOption();
+            rootCommand.Add(versionOption);
+            rootCommand.SetAction(async (parseResult, cancellationToken) =>
+            {
+                if (parseResult.GetValue(versionOption))
+                {
+                    AzureComputeGalleryCopy.Cli.VersionOption.PrintAndExit();
+                }
+            });
+
             // Global options
             var configOption = new Option<string?>("--config", "-c")
             {
@@ -105,10 +127,25 @@ class Program
             var copyCommandHandler = serviceProvider.GetRequiredService<CopyCommand>();
             rootCommand.Add(copyCommandHandler.CreateCommand());
 
-            logger.LogInformation("CLI root command initialized");
+            // T033-T036: Register list and validate subcommands
+            var listCommand = new Command("list", "List galleries, images, or versions");
+            var listGalleriesCommand = serviceProvider.GetRequiredService<ListGalleriesCommand>();
+            var listImagesCommand = serviceProvider.GetRequiredService<ListImagesCommand>();
+            var listVersionsCommand = serviceProvider.GetRequiredService<ListVersionsCommand>();
+            
+            listCommand.Add(listGalleriesCommand.CreateCommand());
+            listCommand.Add(listImagesCommand.CreateCommand());
+            listCommand.Add(listVersionsCommand.CreateCommand());
+            
+            rootCommand.Add(listCommand);
 
-          // Execute the command (System.CommandLine beta pattern: Parse -> InvokeAsync)
-          return await rootCommand.Parse(args).InvokeAsync();
+            var validateCommand = serviceProvider.GetRequiredService<ValidateCommand>();
+            rootCommand.Add(validateCommand.CreateCommand());
+
+            logger.LogInformation("CLI root command initialized with all subcommands");
+
+            // Execute the command (System.CommandLine beta pattern: Parse -> InvokeAsync)
+            return await rootCommand.Parse(args).InvokeAsync();
         }
         catch (Exception ex)
         {

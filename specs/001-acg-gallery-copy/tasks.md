@@ -76,13 +76,13 @@ Tests (unit):
 
 ## Final Phase: Polish & Cross-Cutting
 
-- [ ] T033 Implement `list galleries` command in `src/AzureComputeGalleryCopy/Cli/List/ListGalleriesCommand.cs`
-- [ ] T034 [P] Implement `list images` command in `src/AzureComputeGalleryCopy/Cli/List/ListImagesCommand.cs`
-- [ ] T035 [P] Implement `list versions` command in `src/AzureComputeGalleryCopy/Cli/List/ListVersionsCommand.cs`
-- [ ] T036 [P] Implement `validate` command (config + connectivity) in `src/AzureComputeGalleryCopy/Cli/Validate/ValidateCommand.cs`
-- [ ] T037 [P] Add structured operation logger (IDs, codes) in `src/AzureComputeGalleryCopy/Logging/OperationLogger.cs`
-- [ ] T038 [P] Update root `README.md` with prerequisites and examples in `README.md`
-- [ ] T039 [P] Add version info/`--version` wiring in `src/AzureComputeGalleryCopy/Cli/VersionOption.cs`
+- [x] T033 Implement `list galleries` command in `src/AzureComputeGalleryCopy/Cli/List/ListGalleriesCommand.cs`
+- [x] T034 [P] Implement `list images` command in `src/AzureComputeGalleryCopy/Cli/List/ListImagesCommand.cs`
+- [x] T035 [P] Implement `list versions` command in `src/AzureComputeGalleryCopy/Cli/List/ListVersionsCommand.cs`
+- [x] T036 [P] Implement `validate` command (config + connectivity) in `src/AzureComputeGalleryCopy/Cli/Validate/ValidateCommand.cs`
+- [x] T037 [P] Add structured operation logger (IDs, codes) in `src/AzureComputeGalleryCopy/Logging/OperationLogger.cs`
+- [x] T038 [P] Update root `README.md` with prerequisites and examples in `README.md`
+- [x] T039 [P] Add version info/`--version` wiring in `src/AzureComputeGalleryCopy/Cli/VersionOption.cs`
 
 ---
 
