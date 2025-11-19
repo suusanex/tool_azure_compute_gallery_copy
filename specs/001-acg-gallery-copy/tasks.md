@@ -67,12 +67,12 @@ Tests (unit):
 - Independent Test Criteria: ドライランの出力計画と通常実行結果が一致する（変更がない）。
 
 Implementation tasks:
-- [ ] T029 [US3] Add dry-run path to copy service producing `CopySummary` in `src/AzureComputeGalleryCopy/Services/Gallery/GalleryCopyService.cs`
-- [ ] T030 [P] [US3] Implement dry-run output printer (plan view) in `src/AzureComputeGalleryCopy/Cli/Output/DryRunPrinter.cs`
-- [ ] T031 [P] [US3] Handle `--dry-run` switch and routing in `src/AzureComputeGalleryCopy/Cli/CopyCommand.cs`
+- [x] T029 [US3] Add dry-run path to copy service producing `CopySummary` in `src/AzureComputeGalleryCopy/Services/Gallery/GalleryCopyService.cs`
+- [x] T030 [P] [US3] Implement dry-run output printer (plan view) in `src/AzureComputeGalleryCopy/Cli/Output/DryRunPrinter.cs`
+- [x] T031 [P] [US3] Handle `--dry-run` switch and routing in `src/AzureComputeGalleryCopy/Cli/CopyCommand.cs`
 
 Tests (unit):
-- [ ] T032 [P] [US3] Tests for dry-run plan generation parity in `tests/AzureComputeGalleryCopy.Tests/Services/Gallery/DryRunTests.cs`
+- [x] T032 [P] [US3] Tests for dry-run plan generation parity in `tests/AzureComputeGalleryCopy.Tests/Services/Gallery/DryRunTests.cs`
 
 ## Final Phase: Polish & Cross-Cutting
 

@@ -1,6 +1,7 @@
 using System.CommandLine;
 using AzureComputeGalleryCopy.Models;
 using AzureComputeGalleryCopy.Services.Gallery;
+using AzureComputeGalleryCopy.Cli.Output;
 using Azure.Identity;
 using Azure.ResourceManager;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,8 @@ public class CopyCommand
     private readonly IGalleryCopyService _copyService;
     private readonly ILogger<CopyCommand> _logger;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly SummaryPrinter _summaryPrinter;
+    private readonly DryRunPrinter _dryRunPrinter;
 
     /// <summary>
     /// CopyCommandのコンストラクタ
@@ -26,19 +29,25 @@ public class CopyCommand
         IGalleryQueryService queryService,
         IGalleryCopyService copyService,
         ILogger<CopyCommand> logger,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        SummaryPrinter summaryPrinter,
+        DryRunPrinter dryRunPrinter)
     {
         ArgumentNullException.ThrowIfNull(clientFactory);
         ArgumentNullException.ThrowIfNull(queryService);
         ArgumentNullException.ThrowIfNull(copyService);
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(loggerFactory);
+        ArgumentNullException.ThrowIfNull(summaryPrinter);
+        ArgumentNullException.ThrowIfNull(dryRunPrinter);
 
         _clientFactory = clientFactory;
         _queryService = queryService;
         _copyService = copyService;
         _logger = logger;
         _loggerFactory = loggerFactory;
+        _summaryPrinter = summaryPrinter;
+        _dryRunPrinter = dryRunPrinter;
     }
 
     /// <summary>
@@ -274,16 +283,31 @@ public class CopyCommand
                 filterCriteria,
                 dryRun);
 
-            // サマリーを出力
-            PrintSummary(summary);
+            // サマリーを出力（ドライランモードに応じて出力を分岐）
+            PrintSummary(summary, dryRun);
 
             // 終了コードを決定
-            Environment.Exit(DetermineExitCode(summary));
+            Environment.Exit(DetermineExitCode(summary, dryRun));
         }
         catch (Exception ex)
         {
             _logger.LogError("Copy command failed: {Message}\n{StackTrace}", ex.Message, ex.StackTrace);
             Environment.Exit(4); // 認証エラーまたはその他の予期しないエラー
+        }
+    }
+
+    /// <summary>
+    /// サマリーを出力
+    /// </summary>
+    private void PrintSummary(CopySummary summary, bool isDryRun)
+    {
+        if (isDryRun)
+        {
+            _dryRunPrinter.PrintDryRunPlan(summary);
+        }
+        else
+        {
+            _summaryPrinter.PrintSummary(summary);
         }
     }
 
@@ -303,80 +327,16 @@ public class CopyCommand
             .Where(p => !string.IsNullOrEmpty(p))
             .ToList();
     }
-
-    /// <summary>
-    /// サマリーを出力
-    /// </summary>
-    private void PrintSummary(CopySummary summary)
+    private int DetermineExitCode(CopySummary summary, bool isDryRun)
     {
-        Console.WriteLine();
-        Console.WriteLine("========================================");
-        Console.WriteLine(summary.IsDryRun ? "Copy Plan Summary" : "Copy Summary");
-        Console.WriteLine("========================================");
-        Console.WriteLine($"Duration: {summary.EndTime - summary.StartTime:hh\\:mm\\:ss}");
-        Console.WriteLine($"Source: Subscription '{summary.SourceContext.SubscriptionId}', " +
-            $"Gallery '{summary.SourceContext.GalleryName}'");
-        Console.WriteLine($"Target: Subscription '{summary.TargetContext.SubscriptionId}', " +
-            $"Gallery '{summary.TargetContext.GalleryName}'");
-        Console.WriteLine();
-        Console.WriteLine("Results:");
-        Console.WriteLine($"  Image Definitions Created: {summary.CreatedImageDefinitions}");
-        Console.WriteLine($"  Image Versions Created: {summary.CreatedImageVersions}");
-        Console.WriteLine($"  Image Versions Skipped: {summary.SkippedImageVersions}");
-        Console.WriteLine($"  Failed Operations: {summary.FailedOperations}");
-        Console.WriteLine();
-
-        // スキップされた操作を表示
-        var skippedOps = summary.Operations.Where(op => op.Result == OperationResult.Skipped).ToList();
-        if (skippedOps.Any())
+        if (isDryRun)
         {
-            Console.WriteLine("Skipped Operations:");
-            foreach (var op in skippedOps)
-            {
-                if (op.Type == OperationType.CreateImageVersion)
-                {
-                    Console.WriteLine($"  - Version '{op.ImageDefinitionName}/{op.VersionName}': {op.SkipReason}");
-                }
-                else if (op.Type == OperationType.CreateImageDefinition)
-                {
-                    Console.WriteLine($"  - Image '{op.ImageDefinitionName}': {op.SkipReason}");
-                }
-            }
-            Console.WriteLine();
+            return _dryRunPrinter.DetermineDryRunExitCode(summary);
         }
-
-        // 失敗した操作を表示
-        var failedOps = summary.Operations.Where(op => op.Result == OperationResult.Failed).ToList();
-        if (failedOps.Any())
+        else
         {
-            Console.WriteLine("Failed Operations:");
-            foreach (var op in failedOps)
-            {
-                if (op.Type == OperationType.CreateImageVersion)
-                {
-                    Console.WriteLine($"  - Version '{op.ImageDefinitionName}/{op.VersionName}': " +
-                        $"{op.ErrorMessage} (Code: {op.ErrorCode})");
-                }
-                else if (op.Type == OperationType.CreateImageDefinition)
-                {
-                    Console.WriteLine($"  - Image '{op.ImageDefinitionName}': " +
-                        $"{op.ErrorMessage} (Code: {op.ErrorCode})");
-                }
-            }
+            return _summaryPrinter.DetermineExitCode(summary);
         }
-    }
-
-    /// <summary>
-    /// 終了コードを決定
-    /// </summary>
-    private int DetermineExitCode(CopySummary summary)
-    {
-        if (summary.FailedOperations > 0)
-        {
-            return 1; // 部分的失敗
-        }
-
-        return 0; // 成功
     }
 
     /// <summary>

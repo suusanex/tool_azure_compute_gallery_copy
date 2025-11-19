@@ -76,6 +76,7 @@ class Program
             services.AddSingleton<IGalleryCopyService, GalleryCopyService>();
             services.AddSingleton<CopyCommand>();
             services.AddSingleton<SummaryPrinter>();
+            services.AddSingleton<DryRunPrinter>();
 
             var serviceProvider = services.BuildServiceProvider();
 

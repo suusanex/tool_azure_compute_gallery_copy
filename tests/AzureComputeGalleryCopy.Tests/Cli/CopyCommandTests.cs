@@ -1,5 +1,6 @@
 using System.CommandLine;
 using AzureComputeGalleryCopy.Cli;
+using AzureComputeGalleryCopy.Cli.Output;
 using AzureComputeGalleryCopy.Services.Gallery;
 using Moq;
 using NUnit.Framework;
@@ -18,6 +19,8 @@ public class CopyCommandTests
     private Mock<IGalleryCopyService> _mockCopyService = null!;
     private Mock<ILogger<CopyCommand>> _mockLogger = null!;
     private Mock<ILoggerFactory> _mockLoggerFactory = null!;
+    private SummaryPrinter _summaryPrinter = null!;
+    private DryRunPrinter _dryRunPrinter = null!;
     private CopyCommand _command = null!;
 
     [SetUp]
@@ -32,12 +35,20 @@ public class CopyCommandTests
         _mockLoggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>()))
             .Returns(_mockLogger.Object);
 
+        var summaryLogger = new Mock<ILogger<SummaryPrinter>>();
+        _summaryPrinter = new SummaryPrinter(summaryLogger.Object);
+        
+        var dryRunLogger = new Mock<ILogger<DryRunPrinter>>();
+        _dryRunPrinter = new DryRunPrinter(dryRunLogger.Object);
+
         _command = new CopyCommand(
             _mockClientFactory.Object,
             _mockQueryService.Object,
             _mockCopyService.Object,
             _mockLogger.Object,
-            _mockLoggerFactory.Object);
+            _mockLoggerFactory.Object,
+            _summaryPrinter,
+            _dryRunPrinter);
     }
 
     /// <summary>
