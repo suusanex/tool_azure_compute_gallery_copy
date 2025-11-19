@@ -1,6 +1,7 @@
 using System.CommandLine;
 using AzureComputeGalleryCopy.Models;
 using AzureComputeGalleryCopy.Services.Gallery;
+using AzureComputeGalleryCopy.Logging;
 using AzureComputeGalleryCopy.Cli.Output;
 using Azure.Identity;
 using Azure.ResourceManager;
@@ -18,6 +19,7 @@ public class CopyCommand
     private readonly IGalleryCopyService _copyService;
     private readonly ILogger<CopyCommand> _logger;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly IOperationLogger _operationLogger;
     private readonly SummaryPrinter _summaryPrinter;
     private readonly DryRunPrinter _dryRunPrinter;
 
@@ -30,6 +32,7 @@ public class CopyCommand
         IGalleryCopyService copyService,
         ILogger<CopyCommand> logger,
         ILoggerFactory loggerFactory,
+        IOperationLogger operationLogger,
         SummaryPrinter summaryPrinter,
         DryRunPrinter dryRunPrinter)
     {
@@ -38,6 +41,7 @@ public class CopyCommand
         ArgumentNullException.ThrowIfNull(copyService);
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(loggerFactory);
+        ArgumentNullException.ThrowIfNull(operationLogger);
         ArgumentNullException.ThrowIfNull(summaryPrinter);
         ArgumentNullException.ThrowIfNull(dryRunPrinter);
 
@@ -46,6 +50,7 @@ public class CopyCommand
         _copyService = copyService;
         _logger = logger;
         _loggerFactory = loggerFactory;
+        _operationLogger = operationLogger;
         _summaryPrinter = summaryPrinter;
         _dryRunPrinter = dryRunPrinter;
     }
@@ -96,16 +101,10 @@ public class CopyCommand
         };
 
         // 認証オプション
-        var tenantIdOption = new Option<string?>("--tenant-id", "-t")
+        var tenantIdOption = new Option<string>("--tenant-id", "-t")
         {
-            Description = "Azure tenant ID (optional, can be read from config or environment)",
-            Required = false
-        };
-
-        var clientIdOption = new Option<string?>("--client-id")
-        {
-            Description = "Azure app registration client ID (optional, can be read from config or environment)",
-            Required = false
+            Description = "Azure tenant ID (required for authentication)",
+            Required = true
         };
 
         // フィルタオプション
@@ -156,7 +155,6 @@ public class CopyCommand
         command.Add(targetResourceGroupOption);
         command.Add(targetGalleryOption);
         command.Add(tenantIdOption);
-        command.Add(clientIdOption);
         command.Add(includeImagesOption);
         command.Add(excludeImagesOption);
         command.Add(includeVersionsOption);
@@ -173,8 +171,7 @@ public class CopyCommand
             var targetSubscription = parseResult.GetValue(targetSubscriptionOption) ?? "";
             var targetResourceGroup = parseResult.GetValue(targetResourceGroupOption) ?? "";
             var targetGallery = parseResult.GetValue(targetGalleryOption) ?? "";
-            var tenantId = parseResult.GetValue(tenantIdOption);
-            var clientId = parseResult.GetValue(clientIdOption);
+            var tenantId = parseResult.GetValue(tenantIdOption) ?? "";
             var includeImages = parseResult.GetValue(includeImagesOption);
             var excludeImages = parseResult.GetValue(excludeImagesOption);
             var includeVersions = parseResult.GetValue(includeVersionsOption);
@@ -190,7 +187,6 @@ public class CopyCommand
                 targetResourceGroup,
                 targetGallery,
                 tenantId,
-                clientId,
                 includeImages,
                 excludeImages,
                 includeVersions,
@@ -212,8 +208,7 @@ public class CopyCommand
         string targetSubscription,
         string targetResourceGroup,
         string targetGallery,
-        string? tenantId,
-        string? clientId,
+        string tenantId,
         string? includeImages,
         string? excludeImages,
         string? includeVersions,
@@ -224,6 +219,22 @@ public class CopyCommand
         try
         {
             _logger.LogInformation("Starting copy command execution (DryRun: {DryRun})", dryRun);
+
+            var operationId = Guid.NewGuid().ToString();
+            var commandMetadata = new Dictionary<string, string>
+            {
+                { "Command", "copy" },
+                { "Mode", dryRun ? "DRY_RUN" : "NORMAL" },
+                { "SourceSubscription", sourceSubscription },
+                { "TargetSubscription", targetSubscription }
+            };
+
+            _operationLogger.LogOperationEvent(
+                operationId,
+                "COPY_COMMAND_START",
+                "Copy command execution started",
+                LogLevel.Information,
+                metadata: commandMetadata);
 
             // フィルタ基準を構築
             var filterCriteria = new FilterCriteria
@@ -236,10 +247,7 @@ public class CopyCommand
             };
 
             // ソースおよびターゲット AzureContext を構築
-            if (string.IsNullOrEmpty(tenantId))
-            {
-                throw new InvalidOperationException("Tenant ID is required (via --tenant-id, environment, or config)");
-            }
+            // tenantIdは必須パラメータとしてCLIで検証済み
 
             var sourceContext = new AzureContext
             {
@@ -261,15 +269,57 @@ public class CopyCommand
             var sourceClient = _clientFactory.CreateArmClient(tenantId, sourceSubscription);
             var targetClient = _clientFactory.CreateArmClient(tenantId, targetSubscription);
 
+            _logger.LogInformation("ARM clients created for source and target subscriptions");
+
             // ギャラリーリソースを取得
             var sourceGalleryCollection = _clientFactory.GetGalleryCollection(sourceContext, sourceClient);
             var targetGalleryCollection = _clientFactory.GetGalleryCollection(targetContext, targetClient);
 
+            _logger.LogInformation("Retrieving source gallery '{SourceGallery}'", sourceGallery);
             var sourceGalleryResponse = await sourceGalleryCollection.GetAsync(sourceGallery);
-            var targetGalleryResponse = await targetGalleryCollection.GetAsync(targetGallery);
-
             var sourceGalleryResource = sourceGalleryResponse.Value;
+
+            // レスポンスから HTTP ステータスコードを取得
+            var sourceGalleryHttpStatus = sourceGalleryResponse.GetRawResponse()?.Status.ToString() ?? "Unknown";
+
+            var sourceGalleryMetadata = new Dictionary<string, string>
+            {
+                { "ResourceId", sourceGalleryResource.Id.ToString() },
+                { "GalleryName", GetNameFromId(sourceGalleryResource.Id.ToString()) },
+                { "Location", sourceGalleryResource.Data.Location.ToString() },
+                { "HttpStatus", sourceGalleryHttpStatus },
+                { "ErrorCode", "None" }
+            };
+
+            _operationLogger.LogOperationEvent(
+                operationId,
+                OperationLogger.OperationCode.QueryGallerySuccess,
+                $"Retrieved source gallery: {sourceGallery}",
+                LogLevel.Information,
+                metadata: sourceGalleryMetadata);
+
+            _logger.LogInformation("Retrieving target gallery '{TargetGallery}'", targetGallery);
+            var targetGalleryResponse = await targetGalleryCollection.GetAsync(targetGallery);
             var targetGalleryResource = targetGalleryResponse.Value;
+
+            // レスポンスから HTTP ステータスコードを取得
+            var targetGalleryHttpStatus = targetGalleryResponse.GetRawResponse()?.Status.ToString() ?? "Unknown";
+
+            var targetGalleryMetadata = new Dictionary<string, string>
+            {
+                { "ResourceId", targetGalleryResource.Id.ToString() },
+                { "GalleryName", GetNameFromId(targetGalleryResource.Id.ToString()) },
+                { "Location", targetGalleryResource.Data.Location.ToString() },
+                { "HttpStatus", targetGalleryHttpStatus },
+                { "ErrorCode", "None" }
+            };
+
+            _operationLogger.LogOperationEvent(
+                operationId,
+                OperationLogger.OperationCode.QueryGallerySuccess,
+                $"Retrieved target gallery: {targetGallery}",
+                LogLevel.Information,
+                metadata: targetGalleryMetadata);
 
             _logger.LogInformation("Source gallery: {SourceGallery}", GetNameFromId(sourceGalleryResource.Id.ToString()));
             _logger.LogInformation("Target gallery: {TargetGallery}", GetNameFromId(targetGalleryResource.Id.ToString()));
@@ -289,9 +339,47 @@ public class CopyCommand
             // 終了コードを決定
             Environment.Exit(DetermineExitCode(summary, dryRun));
         }
+        catch (Azure.RequestFailedException ex)
+        {
+            _logger.LogError("Azure API request failed: Status={Status}, ErrorCode={ErrorCode}, Message={Message}",
+                ex.Status, ex.ErrorCode, ex.Message);
+
+            var errorMetadata = new Dictionary<string, string>
+            {
+                { "ErrorType", "RequestFailedException" },
+                { "HttpStatus", ex.Status.ToString() },
+                { "ErrorCode", ex.ErrorCode ?? "Unknown" },
+                { "Message", ex.Message }
+            };
+
+            _operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                "COPY_COMMAND_FAILED",
+                $"Copy command failed with Azure API error: {ex.Message}",
+                LogLevel.Error,
+                ex,
+                errorMetadata);
+
+            Environment.Exit(4);
+        }
         catch (Exception ex)
         {
             _logger.LogError("Copy command failed: {Message}\n{StackTrace}", ex.Message, ex.StackTrace);
+
+            var errorMetadata = new Dictionary<string, string>
+            {
+                { "ErrorType", ex.GetType().Name },
+                { "Message", ex.Message }
+            };
+
+            _operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                "COPY_COMMAND_FAILED",
+                $"Copy command failed: {ex.Message}",
+                LogLevel.Error,
+                ex,
+                errorMetadata);
+
             Environment.Exit(4); // 認証エラーまたはその他の予期しないエラー
         }
     }

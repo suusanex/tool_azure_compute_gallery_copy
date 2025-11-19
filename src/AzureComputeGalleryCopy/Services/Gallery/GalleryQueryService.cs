@@ -1,6 +1,7 @@
 using Azure.ResourceManager;
 using Azure.ResourceManager.Compute;
 using AzureComputeGalleryCopy.Models;
+using AzureComputeGalleryCopy.Logging;
 using Microsoft.Extensions.Logging;
 
 namespace AzureComputeGalleryCopy.Services.Gallery;
@@ -12,14 +13,17 @@ namespace AzureComputeGalleryCopy.Services.Gallery;
 public class GalleryQueryService : IGalleryQueryService
 {
     private readonly ILogger<GalleryQueryService> _logger;
+    private readonly IOperationLogger _operationLogger;
 
     /// <summary>
     /// GalleryQueryServiceのコンストラクタ
     /// </summary>
-    public GalleryQueryService(ILogger<GalleryQueryService> logger)
+    public GalleryQueryService(ILogger<GalleryQueryService> logger, IOperationLogger operationLogger)
     {
         ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(operationLogger);
         _logger = logger;
+        _operationLogger = operationLogger;
     }
 
     /// <summary>
@@ -48,11 +52,39 @@ public class GalleryQueryService : IGalleryQueryService
             }
 
             _logger.LogInformation("Found {Count} image definition(s)", imageDefinitions.Count);
+
+            var metadata = new Dictionary<string, string>
+            {
+                { "ResourceId", galleryResource.Id.ToString() },
+                { "ImageDefinitionCount", imageDefinitions.Count.ToString() }
+            };
+
+            _operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                OperationLogger.OperationCode.QueryGallerySuccess,
+                $"Query image definitions: Found {imageDefinitions.Count} definition(s)",
+                LogLevel.Information,
+                metadata: metadata);
+
             return imageDefinitions;
         }
         catch (Exception ex)
         {
             _logger.LogError("Failed to enumerate image definitions: {Message}", ex.Message);
+
+            var metadata = new Dictionary<string, string>
+            {
+                { "ResourceId", galleryResource.Id.ToString() }
+            };
+
+            _operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                OperationLogger.OperationCode.QueryGalleryFailed,
+                $"Failed to enumerate image definitions: {ex.Message}",
+                LogLevel.Error,
+                ex,
+                metadata);
+
             throw;
         }
     }
@@ -83,11 +115,39 @@ public class GalleryQueryService : IGalleryQueryService
             }
 
             _logger.LogInformation("Found {Count} image version(s)", imageVersions.Count);
+
+            var metadata = new Dictionary<string, string>
+            {
+                { "ResourceId", imageDefinitionResource.Id.ToString() },
+                { "VersionCount", imageVersions.Count.ToString() }
+            };
+
+            _operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                OperationLogger.OperationCode.QueryGallerySuccess,
+                $"Query image versions: Found {imageVersions.Count} version(s)",
+                LogLevel.Information,
+                metadata: metadata);
+
             return imageVersions;
         }
         catch (Exception ex)
         {
             _logger.LogError("Failed to enumerate image versions: {Message}", ex.Message);
+
+            var metadata = new Dictionary<string, string>
+            {
+                { "ResourceId", imageDefinitionResource.Id.ToString() }
+            };
+
+            _operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                OperationLogger.OperationCode.QueryGalleryFailed,
+                $"Failed to enumerate image versions: {ex.Message}",
+                LogLevel.Error,
+                ex,
+                metadata);
+
             throw;
         }
     }
@@ -152,11 +212,41 @@ public class GalleryQueryService : IGalleryQueryService
             var exists = await imageDefinitionCollection.ExistsAsync(imageDefinitionName);
             _logger.LogDebug("Image definition '{ImageDefinitionName}' exists: {Exists}", 
                 imageDefinitionName, exists);
+
+            var metadata = new Dictionary<string, string>
+            {
+                { "ResourceId", galleryResource.Id.ToString() },
+                { "ImageDefinitionName", imageDefinitionName },
+                { "Exists", exists.ToString() }
+            };
+
+            _operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                OperationLogger.OperationCode.QueryGallerySuccess,
+                $"Check image definition existence: '{imageDefinitionName}' = {exists}",
+                LogLevel.Debug,
+                metadata: metadata);
+
             return exists;
         }
         catch (Exception ex)
         {
             _logger.LogError("Failed to check if image definition exists: {Message}", ex.Message);
+
+            var metadata = new Dictionary<string, string>
+            {
+                { "ResourceId", galleryResource.Id.ToString() },
+                { "ImageDefinitionName", imageDefinitionName }
+            };
+
+            _operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                OperationLogger.OperationCode.QueryGalleryFailed,
+                $"Failed to check image definition existence: {ex.Message}",
+                LogLevel.Error,
+                ex,
+                metadata);
+
             throw;
         }
     }
@@ -180,11 +270,41 @@ public class GalleryQueryService : IGalleryQueryService
             var imageVersionCollection = imageDefinitionResource.GetGalleryImageVersions();
             var exists = await imageVersionCollection.ExistsAsync(versionName);
             _logger.LogDebug("Image version '{VersionName}' exists: {Exists}", versionName, exists);
+
+            var metadata = new Dictionary<string, string>
+            {
+                { "ResourceId", imageDefinitionResource.Id.ToString() },
+                { "VersionName", versionName },
+                { "Exists", exists.ToString() }
+            };
+
+            _operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                OperationLogger.OperationCode.QueryGallerySuccess,
+                $"Check image version existence: '{versionName}' = {exists}",
+                LogLevel.Debug,
+                metadata: metadata);
+
             return exists;
         }
         catch (Exception ex)
         {
             _logger.LogError("Failed to check if image version exists: {Message}", ex.Message);
+
+            var metadata = new Dictionary<string, string>
+            {
+                { "ResourceId", imageDefinitionResource.Id.ToString() },
+                { "VersionName", versionName }
+            };
+
+            _operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                OperationLogger.OperationCode.QueryGalleryFailed,
+                $"Failed to check image version existence: {ex.Message}",
+                LogLevel.Error,
+                ex,
+                metadata);
+
             throw;
         }
     }

@@ -49,10 +49,10 @@ public class ListGalleriesCommand
         };
 
         // 認証オプション
-        var tenantIdOption = new Option<string?>("--tenant-id", "-t")
+        var tenantIdOption = new Option<string>("--tenant-id", "-t")
         {
-            Description = "Azure tenant ID (optional, can be read from config or environment)",
-            Required = false
+            Description = "Azure tenant ID (required for authentication)",
+            Required = true
         };
 
         // オプションをコマンドに追加
@@ -65,7 +65,7 @@ public class ListGalleriesCommand
         {
             var subscription = parseResult.GetValue(subscriptionOption) ?? "";
             var resourceGroup = parseResult.GetValue(resourceGroupOption) ?? "";
-            var tenantId = parseResult.GetValue(tenantIdOption);
+            var tenantId = parseResult.GetValue(tenantIdOption) ?? "";
 
             await ExecuteAsync(subscription, resourceGroup, tenantId);
         });
@@ -79,17 +79,14 @@ public class ListGalleriesCommand
     private async Task ExecuteAsync(
         string subscription,
         string resourceGroup,
-        string? tenantId)
+        string tenantId)
     {
         try
         {
             _logger.LogInformation("Listing galleries in subscription '{Subscription}' and resource group '{ResourceGroup}'",
                 subscription, resourceGroup);
 
-            if (string.IsNullOrEmpty(tenantId))
-            {
-                throw new InvalidOperationException("Tenant ID is required (via --tenant-id, environment, or config)");
-            }
+            // tenantIdは必須パラメータとしてCLIで検証済み
 
             // クライアントを作成
             var client = _clientFactory.CreateArmClient(tenantId, subscription);

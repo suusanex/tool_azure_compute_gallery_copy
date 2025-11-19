@@ -58,8 +58,22 @@ class Program
             var loggerFactoryBuilder = new LoggerFactoryBuilder();
             var loggerFactory = loggerFactoryBuilder.Build(logLevel);
             var logger = loggerFactory.CreateLogger<Program>();
+            var operationLogger = new OperationLogger(loggerFactory.CreateLogger<OperationLogger>());
 
-            // DIコンテナを構築
+            logger.LogInformation("Azure Compute Gallery Copy Tool started");
+
+            var configMetadata = new Dictionary<string, string>
+            {
+                { "LogLevel", toolConfig.LogLevel },
+                { "DryRun", toolConfig.DryRun.ToString() }
+            };
+
+            operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                OperationLogger.OperationCode.ConfigLoadSuccess,
+                "Configuration loaded successfully",
+                LogLevel.Information,
+                metadata: configMetadata);
             var services = new ServiceCollection();
             services.AddSingleton<ILoggerFactory>(loggerFactory);
             services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
@@ -68,11 +82,17 @@ class Program
             services.AddSingleton<IConfigurationValidator, ConfigurationValidator>();
             services.AddSingleton<IAuthenticator>(_ => 
                 new WebView2Authenticator(toolConfig.Authentication));
+            
+            // Azure Resource Manager API用のTokenCredentialを登録
+            // スコープ: https://management.azure.com/.default
+            // InteractiveBrowserCredentialはWebView2を使用（Windows 10以降）
             services.AddSingleton<TokenCredential>(_ => 
                 new InteractiveBrowserCredential(new Azure.Identity.InteractiveBrowserCredentialOptions
                 {
                     TenantId = toolConfig.Authentication.TenantId,
-                    ClientId = toolConfig.Authentication.ClientId
+                    ClientId = toolConfig.Authentication.ClientId,
+                    // ローカルホストリダイレクトURI（標準的なパブリッククライアントアプリ設定）
+                    RedirectUri = new Uri("http://localhost")
                 }));
             services.AddSingleton<ILoggerFactoryBuilder, LoggerFactoryBuilder>();
             
@@ -191,22 +211,80 @@ class Program
                 return 3; // 設定エラー
             }
 
+            var operationLogger = serviceProvider.GetRequiredService<IOperationLogger>();
             var clientFactory = serviceProvider.GetRequiredService<Services.Gallery.IGalleryClientFactory>();
             var copyService = serviceProvider.GetRequiredService<Services.Gallery.IGalleryCopyService>();
             var summaryPrinter = serviceProvider.GetRequiredService<Cli.Output.SummaryPrinter>();
             var dryRunPrinter = serviceProvider.GetRequiredService<Cli.Output.DryRunPrinter>();
 
+            logger.LogInformation("Starting configuration-based copy (DryRun: {DryRun})", toolConfig.DryRun);
+
             // ARMクライアント作成
             var sourceClient = clientFactory.CreateArmClient(toolConfig.Authentication.TenantId, toolConfig.Source.SubscriptionId);
             var targetClient = clientFactory.CreateArmClient(toolConfig.Authentication.TenantId, toolConfig.Target.SubscriptionId);
 
+            var clientMetadata = new Dictionary<string, string>
+            {
+                { "SourceSubscription", toolConfig.Source.SubscriptionId },
+                { "TargetSubscription", toolConfig.Target.SubscriptionId }
+            };
+
+            operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                OperationLogger.OperationCode.AuthenticationSuccess,
+                "ARM clients created for source and target",
+                LogLevel.Information,
+                metadata: clientMetadata);
+
             // ギャラリー取得
             var sourceGalleryCollection = clientFactory.GetGalleryCollection(toolConfig.Source, sourceClient);
             var targetGalleryCollection = clientFactory.GetGalleryCollection(toolConfig.Target, targetClient);
+            
+            logger.LogInformation("Retrieving source gallery: {SourceGallery}", toolConfig.Source.GalleryName);
             var sourceGalleryResponse = await sourceGalleryCollection.GetAsync(toolConfig.Source.GalleryName);
-            var targetGalleryResponse = await targetGalleryCollection.GetAsync(toolConfig.Target.GalleryName);
             var sourceGalleryResource = sourceGalleryResponse.Value;
+
+            // レスポンスから HTTP ステータスコードを取得
+            var sourceGalleryHttpStatus = sourceGalleryResponse.GetRawResponse()?.Status.ToString() ?? "Unknown";
+
+            var sourceGalleryMetadata = new Dictionary<string, string>
+            {
+                { "ResourceId", sourceGalleryResource.Id.ToString() },
+                { "GalleryName", toolConfig.Source.GalleryName },
+                { "ResourceGroup", toolConfig.Source.ResourceGroupName },
+                { "HttpStatus", sourceGalleryHttpStatus },
+                { "ErrorCode", "None" }
+            };
+
+            operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                OperationLogger.OperationCode.QueryGallerySuccess,
+                $"Retrieved source gallery: {toolConfig.Source.GalleryName}",
+                LogLevel.Information,
+                metadata: sourceGalleryMetadata);
+
+            logger.LogInformation("Retrieving target gallery: {TargetGallery}", toolConfig.Target.GalleryName);
+            var targetGalleryResponse = await targetGalleryCollection.GetAsync(toolConfig.Target.GalleryName);
             var targetGalleryResource = targetGalleryResponse.Value;
+
+            // レスポンスから HTTP ステータスコードを取得
+            var targetGalleryHttpStatus = targetGalleryResponse.GetRawResponse()?.Status.ToString() ?? "Unknown";
+
+            var targetGalleryMetadata = new Dictionary<string, string>
+            {
+                { "ResourceId", targetGalleryResource.Id.ToString() },
+                { "GalleryName", toolConfig.Target.GalleryName },
+                { "ResourceGroup", toolConfig.Target.ResourceGroupName },
+                { "HttpStatus", targetGalleryHttpStatus },
+                { "ErrorCode", "None" }
+            };
+
+            operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                OperationLogger.OperationCode.QueryGallerySuccess,
+                $"Retrieved target gallery: {toolConfig.Target.GalleryName}",
+                LogLevel.Information,
+                metadata: targetGalleryMetadata);
 
             logger.LogInformation("Source gallery: {SourceGallery}", toolConfig.Source.GalleryName);
             logger.LogInformation("Target gallery: {TargetGallery}", toolConfig.Target.GalleryName);
@@ -231,9 +309,49 @@ class Program
                 return summaryPrinter.DetermineExitCode(summary);
             }
         }
+        catch (Azure.RequestFailedException ex)
+        {
+            logger.LogError("Configuration-based copy failed: Status={Status}, ErrorCode={ErrorCode}, Message={Message}",
+                ex.Status, ex.ErrorCode, ex.Message);
+
+            var operationLogger = serviceProvider.GetRequiredService<IOperationLogger>();
+            var errorMetadata = new Dictionary<string, string>
+            {
+                { "ErrorType", "RequestFailedException" },
+                { "HttpStatus", ex.Status.ToString() },
+                { "ErrorCode", ex.ErrorCode ?? "Unknown" },
+                { "Message", ex.Message }
+            };
+
+            operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                "CONFIG_COPY_FAILED",
+                $"Configuration-based copy failed: {ex.Message}",
+                LogLevel.Error,
+                ex,
+                errorMetadata);
+
+            return 4; // 実行時エラー
+        }
         catch (Exception ex)
         {
             logger.LogError("Configuration-based copy failed: {Message}\n{StackTrace}", ex.Message, ex.StackTrace);
+
+            var operationLogger = serviceProvider.GetRequiredService<IOperationLogger>();
+            var errorMetadata = new Dictionary<string, string>
+            {
+                { "ErrorType", ex.GetType().Name },
+                { "Message", ex.Message }
+            };
+
+            operationLogger.LogOperationEvent(
+                Guid.NewGuid().ToString(),
+                "CONFIG_COPY_FAILED",
+                $"Configuration-based copy failed: {ex.Message}",
+                LogLevel.Error,
+                ex,
+                errorMetadata);
+
             return 4; // 実行時エラー
         }
     }

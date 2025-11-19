@@ -67,10 +67,10 @@ public class ListVersionsCommand
         };
 
         // 認証オプション
-        var tenantIdOption = new Option<string?>("--tenant-id", "-t")
+        var tenantIdOption = new Option<string>("--tenant-id", "-t")
         {
-            Description = "Azure tenant ID (optional, can be read from config or environment)",
-            Required = false
+            Description = "Azure tenant ID (required for authentication)",
+            Required = true
         };
 
         // オプションをコマンドに追加
@@ -87,7 +87,7 @@ public class ListVersionsCommand
             var resourceGroup = parseResult.GetValue(resourceGroupOption) ?? "";
             var gallery = parseResult.GetValue(galleryOption) ?? "";
             var image = parseResult.GetValue(imageOption) ?? "";
-            var tenantId = parseResult.GetValue(tenantIdOption);
+            var tenantId = parseResult.GetValue(tenantIdOption) ?? "";
 
             await ExecuteAsync(subscription, resourceGroup, gallery, image, tenantId);
         });
@@ -103,17 +103,14 @@ public class ListVersionsCommand
         string resourceGroup,
         string gallery,
         string image,
-        string? tenantId)
+        string tenantId)
     {
         try
         {
             _logger.LogInformation("Listing versions for image '{Image}' in gallery '{Gallery}' (subscription: {Subscription}, resource group: {ResourceGroup})",
                 image, gallery, subscription, resourceGroup);
 
-            if (string.IsNullOrEmpty(tenantId))
-            {
-                throw new InvalidOperationException("Tenant ID is required (via --tenant-id, environment, or config)");
-            }
+            // tenantIdは必須パラメータとしてCLIで検証済み
 
             // コンテキストを構築
             var context = new AzureContext

@@ -45,9 +45,9 @@ public class WebView2Authenticator : IAuthenticator
         
         try
         {
-            // TenantId はコンストラクタで設定済み、TokenRequestContext には含めない
-            return await credential.GetTokenAsync(
-                new TokenRequestContext(scopes));
+            // TokenRequestContext に TenantId を含める（マルチテナント認証の明示化）
+            var context = new TokenRequestContext(scopes, tenantId: _authConfig.TenantId);
+            return await credential.GetTokenAsync(context);
         }
         catch (OperationCanceledException)
         {
@@ -86,12 +86,13 @@ public class WebView2Authenticator : IAuthenticator
             }
 
             // InteractiveBrowserCredentialをWebView2埋め込みで初期化
-            // MSAL is-browser オプションはWindows 10以降で自動的にWebView2を使用
+            // MSAL はWindows 10以降で自動的にWebView2を使用
             var options = new InteractiveBrowserCredentialOptions
             {
                 TenantId = _authConfig.TenantId,
                 ClientId = _authConfig.ClientId,
-                // UriRedirectを指定しない場合、プラットフォームのデフォルト動作（WebView2）を使用
+                // ローカルホストリダイレクトURI（標準的なパブリッククライアントアプリ設定）
+                RedirectUri = new Uri("http://localhost")
             };
 
             _credential = new InteractiveBrowserCredential(options);

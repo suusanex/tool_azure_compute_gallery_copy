@@ -5,6 +5,7 @@ using Azure.ResourceManager.Compute.Models;
 using AzureComputeGalleryCopy.Models;
 using AzureComputeGalleryCopy.Services.Filtering;
 using AzureComputeGalleryCopy.Services.Gallery;
+using AzureComputeGalleryCopy.Logging;
 using Moq;
 using NUnit.Framework;
 using Microsoft.Extensions.Logging;
@@ -20,6 +21,7 @@ public class GalleryCopyServiceTests
     private Mock<IGalleryQueryService> _mockQueryService = null!;
     private Mock<IFilterMatcher> _mockFilterMatcher = null!;
     private Mock<ILogger<GalleryCopyService>> _mockLogger = null!;
+    private Mock<IOperationLogger> _mockOperationLogger = null!;
     private GalleryCopyService _service = null!;
 
     [SetUp]
@@ -28,6 +30,7 @@ public class GalleryCopyServiceTests
         _mockQueryService = new Mock<IGalleryQueryService>();
         _mockFilterMatcher = new Mock<IFilterMatcher>();
         _mockLogger = new Mock<ILogger<GalleryCopyService>>();
+        _mockOperationLogger = new Mock<IOperationLogger>();
         
         // デフォルトではすべてのフィルタマッチングを許可
         _mockFilterMatcher
@@ -37,7 +40,7 @@ public class GalleryCopyServiceTests
             .Setup(f => f.MatchesVersion(It.IsAny<string>(), It.IsAny<FilterCriteria>()))
             .Returns(true);
         
-        _service = new GalleryCopyService(_mockQueryService.Object, _mockFilterMatcher.Object, _mockLogger.Object);
+        _service = new GalleryCopyService(_mockQueryService.Object, _mockFilterMatcher.Object, _mockLogger.Object, _mockOperationLogger.Object);
     }
 
     /// <summary>

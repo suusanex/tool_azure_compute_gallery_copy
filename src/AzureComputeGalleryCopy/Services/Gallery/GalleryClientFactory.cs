@@ -31,9 +31,13 @@ public class GalleryClientFactory : IGalleryClientFactory
     /// <summary>
     /// 指定されたテナント・サブスクリプションのArmClientを生成
     /// </summary>
-    /// <param name="tenantId">テナントID</param>
+    /// <param name="tenantId">テナントID（TokenCredential初期化時に使用済み）</param>
     /// <param name="subscriptionId">サブスクリプションID</param>
     /// <returns>ArmClient インスタンス</returns>
+    /// <remarks>
+    /// tenantIdは既にTokenCredential（InteractiveBrowserCredential）の初期化時に設定されているため、
+    /// ここでは参照のみ行う。Azure SDK の ArmClient はテナントIDをコンストラクタで受け取らない。
+    /// </remarks>
     public ArmClient CreateArmClient(string tenantId, string subscriptionId)
     {
         ArgumentNullException.ThrowIfNullOrEmpty(tenantId);
@@ -42,7 +46,9 @@ public class GalleryClientFactory : IGalleryClientFactory
         _logger.LogDebug("Creating ArmClient for subscription '{SubscriptionId}' in tenant '{TenantId}'", 
             subscriptionId, tenantId);
 
-        // テナント情報を指定して ArmClient を作成
+        // ArmClient の作成（TokenCredential は既にテナントIDを含んでいる）
+        // 注: ArmClient コンストラクタはテナントIDを直接受け取らない。
+        // テナント認証は TokenCredential (InteractiveBrowserCredential) で管理される。
         var armClient = new ArmClient(_credential, subscriptionId);
         
         _logger.LogDebug("ArmClient created successfully");

@@ -3,6 +3,7 @@ using Azure.Core;
 using Azure.ResourceManager.Compute;
 using Azure.ResourceManager.Compute.Models;
 using AzureComputeGalleryCopy.Services.Gallery;
+using AzureComputeGalleryCopy.Logging;
 using Moq;
 using NUnit.Framework;
 using Microsoft.Extensions.Logging;
@@ -16,13 +17,15 @@ namespace AzureComputeGalleryCopy.Tests.Services.Gallery;
 public class GalleryQueryServiceTests
 {
     private Mock<ILogger<GalleryQueryService>> _mockLogger = null!;
+    private Mock<IOperationLogger> _mockOperationLogger = null!;
     private GalleryQueryService _service = null!;
 
     [SetUp]
     public void SetUp()
     {
         _mockLogger = new Mock<ILogger<GalleryQueryService>>();
-        _service = new GalleryQueryService(_mockLogger.Object);
+        _mockOperationLogger = new Mock<IOperationLogger>();
+        _service = new GalleryQueryService(_mockLogger.Object, _mockOperationLogger.Object);
     }
 
     /// <summary>
