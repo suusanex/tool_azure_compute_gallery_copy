@@ -54,12 +54,12 @@ Notes:
 - Independent Test Criteria: 指定パターンに一致する対象のみが作成/スキップ判定されること。
 
 Implementation tasks:
-- [ ] T025 [US2] Implement filter matcher service (prefix/contains) in `src/AzureComputeGalleryCopy/Services/Filtering/FilterMatcher.cs`
-- [ ] T026 [P] [US2] Integrate filtering into copy pipeline in `src/AzureComputeGalleryCopy/Services/Gallery/GalleryCopyService.cs`
-- [ ] T027 [P] [US2] Map CLI filter options to criteria in `src/AzureComputeGalleryCopy/Cli/CopyCommand.cs`
+- [x] T025 [US2] Implement filter matcher service (prefix/contains) in `src/AzureComputeGalleryCopy/Services/Filtering/FilterMatcher.cs`
+- [x] T026 [P] [US2] Integrate filtering into copy pipeline in `src/AzureComputeGalleryCopy/Services/Gallery/GalleryCopyService.cs`
+- [x] T027 [P] [US2] Map CLI filter options to criteria in `src/AzureComputeGalleryCopy/Cli/CopyCommand.cs`
 
 Tests (unit):
-- [ ] T028 [P] [US2] Tests for filter matching combinations in `tests/AzureComputeGalleryCopy.Tests/Services/Filtering/FilterMatcherTests.cs`
+- [x] T028 [P] [US2] Tests for filter matching combinations in `tests/AzureComputeGalleryCopy.Tests/Services/Filtering/FilterMatcherTests.cs`
 
 ## Phase 5: User Story 3 (P3) — ドライランで影響確認
 

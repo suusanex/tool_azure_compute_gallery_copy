@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using AzureComputeGalleryCopy.Configuration;
 using AzureComputeGalleryCopy.Logging;
 using AzureComputeGalleryCopy.Services.Authentication;
+using AzureComputeGalleryCopy.Services.Filtering;
 using AzureComputeGalleryCopy.Validation;
 using AzureComputeGalleryCopy.Services.Gallery;
 using AzureComputeGalleryCopy.Cli;
@@ -65,6 +66,9 @@ class Program
             services.AddSingleton<IAuthenticator>(_ => 
                 new WebView2Authenticator(toolConfig.Authentication));
             services.AddSingleton<ILoggerFactoryBuilder, LoggerFactoryBuilder>();
+            
+            // T025: Filter matcher service
+            services.AddSingleton<IFilterMatcher, FilterMatcher>();
             
             // T020, T021: Gallery services DI登録
             services.AddSingleton<IGalleryClientFactory, GalleryClientFactory>();

@@ -3,6 +3,7 @@ using Azure.ResourceManager;
 using Azure.ResourceManager.Compute;
 using Azure.ResourceManager.Compute.Models;
 using AzureComputeGalleryCopy.Models;
+using AzureComputeGalleryCopy.Services.Filtering;
 using Microsoft.Extensions.Logging;
 
 namespace AzureComputeGalleryCopy.Services.Gallery;
@@ -15,16 +16,20 @@ public class GalleryCopyService : IGalleryCopyService
 {
     private readonly ILogger<GalleryCopyService> _logger;
     private readonly IGalleryQueryService _queryService;
+    private readonly IFilterMatcher _filterMatcher;
 
     /// <summary>
     /// GalleryCopyServiceのコンストラクタ
     /// </summary>
-    public GalleryCopyService(IGalleryQueryService queryService, ILogger<GalleryCopyService> logger)
+    public GalleryCopyService(IGalleryQueryService queryService, IFilterMatcher filterMatcher, 
+        ILogger<GalleryCopyService> logger)
     {
         ArgumentNullException.ThrowIfNull(queryService);
+        ArgumentNullException.ThrowIfNull(filterMatcher);
         ArgumentNullException.ThrowIfNull(logger);
         
         _queryService = queryService;
+        _filterMatcher = filterMatcher;
         _logger = logger;
     }
 
@@ -74,12 +79,14 @@ public class GalleryCopyService : IGalleryCopyService
             // 各イメージ定義をコピー
             foreach (var (sourceImageDef, sourceVersions) in sourceImages)
             {
-                // フィルタ判定
-                if (!MatchesFilter(sourceImageDef.Id.ToString(), filterCriteria?.ImageDefinitionIncludes, 
-                    filterCriteria?.ImageDefinitionExcludes, filterCriteria?.MatchMode ?? MatchMode.Prefix))
+                var imageName = GetNameFromIdString(sourceImageDef.Id.ToString());
+
+                // フィルタ判定（デフォルトはフィルタなし）
+                var filterCriteriaToUse = filterCriteria ?? new FilterCriteria();
+                if (!_filterMatcher.MatchesImageDefinition(imageName, filterCriteriaToUse))
                 {
                     _logger.LogInformation("Skipping image definition '{ImageDefinitionName}' (filtered out)",
-                        sourceImageDef.Id.ToString());
+                        imageName);
                     continue;
                 }
 
@@ -95,12 +102,13 @@ public class GalleryCopyService : IGalleryCopyService
                 // 各バージョンをコピー
                 foreach (var sourceVersion in sourceVersions)
                 {
+                    var versionName = GetNameFromIdString(sourceVersion.Id.ToString());
+
                     // フィルタ判定
-                    if (!MatchesFilter(sourceVersion.Id.ToString(), filterCriteria?.VersionIncludes,
-                        filterCriteria?.VersionExcludes, filterCriteria?.MatchMode ?? MatchMode.Prefix))
+                    if (!_filterMatcher.MatchesVersion(versionName, filterCriteriaToUse))
                     {
                         _logger.LogInformation("Skipping version '{VersionName}' (filtered out)",
-                            sourceVersion.Id.ToString());
+                            versionName);
                         continue;
                     }
 
@@ -412,58 +420,6 @@ public class GalleryCopyService : IGalleryCopyService
         }
     }
 
-    /// <summary>
-    /// イメージ定義の変更不可能な属性が互換性があるかチェック
-    /// </summary>
-    private bool AreImageAttributesCompatible(GalleryImageData sourceImage, GalleryImageData targetImage)
-    {
-        // Azure SDKでは直接比較ができないため、基本的な存在確認のみ実施
-        // 実装注: 今後、より詳細な属性比較が必要な場合は、
-        // Azure SDK APIの更新に合わせて適切なプロパティアクセスを追加すること
-        return true; // 現在は常に互換性ありと判定（同期時に属性検証は行わない）
-    }
-
-    /// <summary>
-    /// フィルタマッチングのチェック
-    /// </summary>
-    private bool MatchesFilter(string value, IList<string>? includes, IList<string>? excludes, 
-        MatchMode matchMode)
-    {
-        // Includeがある場合、いずれかのパターンにマッチする必要がある
-        if (includes != null && includes.Count > 0)
-        {
-            var includeMatches = includes.Any(pattern => MatchesPattern(value, pattern, matchMode));
-            if (!includeMatches)
-            {
-                return false;
-            }
-        }
-
-        // Excludeがある場合、いずれのパターンにもマッチしない必要がある
-        if (excludes != null && excludes.Count > 0)
-        {
-            var excludeMatches = excludes.Any(pattern => MatchesPattern(value, pattern, matchMode));
-            if (excludeMatches)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// パターンマッチング
-    /// </summary>
-    private bool MatchesPattern(string value, string pattern, MatchMode matchMode)
-    {
-        return matchMode switch
-        {
-            MatchMode.Prefix => value.StartsWith(pattern, StringComparison.OrdinalIgnoreCase),
-            MatchMode.Contains => value.Contains(pattern, StringComparison.OrdinalIgnoreCase),
-            _ => false
-        };
-    }
 
     /// <summary>
     /// サマリー統計を更新
