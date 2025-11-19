@@ -6,7 +6,6 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
   <!-- NuGet Package References -->
@@ -15,9 +14,6 @@
     <PackageReference Include="Azure.Identity" Version="1.14.0" />
     <PackageReference Include="Azure.ResourceManager.Compute" Version="1.13.0" />
     <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.71.1" />
-
-    <!-- WebView2 -->
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2849.39" />
 
     <!-- Configuration -->
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.0" />

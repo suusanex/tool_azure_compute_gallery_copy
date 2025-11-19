@@ -132,8 +132,11 @@ public enum Architecture
 - Versionsは追加のみ可能、削除は外部操作
 
 **不整合処理**:
-- ターゲットに同名定義が存在し、変更不可能な属性が不一致の場合: エラーで中断
-- エラーメッセージ例: "Image definition 'ImageName' already exists with incompatible OSType (Source: Linux, Target: Windows)"
+- ターゲットに同名定義が存在し、変更不可能な属性が不一致の場合: Azure API実行時にエラーが発生
+- 本ツールは事前検証を行わず、Azure APIのエラーレスポンスをログに記録
+- エラーメッセージ例（Azure APIから）: "Image definition 'ImageName' already exists with incompatible OSType"
+
+**実装制限**: 変更不可能属性の事前検証は実装されていません（制限事項 L-001）。
 
 ---
 
@@ -218,6 +221,9 @@ public class TargetRegion
 **リージョン制約処理**:
 - ターゲットで利用不可なリージョンが含まれる場合: 当該バージョンをスキップ、ログ出力
 - ログメッセージ例: "Skipping version '1.0.0': Target region 'invalidregion' is not available in target subscription"
+
+**実装制限**: ターゲットリージョン設定の詳細コピーは実装されていません（制限事項 L-002）。
+ターゲットでは、ターゲットギャラリーの所在リージョンにデフォルト設定でレプリケートされます。
 
 ---
 

@@ -30,18 +30,23 @@ Branch: `001-acg-gallery-copy`
 - Independent Test Criteria: 複数定義・複数バージョンで、未存在のみ作成・既存はスキップし、重複が発生しないこと。
 
 Implementation tasks:
-- [ ] T015 [US1] Implement ARM clients factory (Compute) in `src/AzureComputeGalleryCopy/Services/Gallery/GalleryClientFactory.cs`
-- [ ] T016 [US1] Implement query service to enumerate definitions/versions in `src/AzureComputeGalleryCopy/Services/Gallery/GalleryQueryService.cs`
-- [ ] T017 [US1] Implement copy service (definitions + versions, idempotent) in `src/AzureComputeGalleryCopy/Services/Gallery/GalleryCopyService.cs`
-- [ ] T018 [US1] Implement immutable-attribute checks + region availability checks in `src/AzureComputeGalleryCopy/Services/Gallery/GalleryCopyService.cs`
-- [ ] T019 [US1] Implement `copy` command options and binding in `src/AzureComputeGalleryCopy/Cli/CopyCommand.cs`
-- [ ] T020 [P] [US1] Wire command handler to services/DI in `src/AzureComputeGalleryCopy/Program.cs`
-- [ ] T021 [P] [US1] Implement copy summary printer and exit codes in `src/AzureComputeGalleryCopy/Cli/Output/SummaryPrinter.cs`
+- [x] T015 [US1] Implement ARM clients factory (Compute) in `src/AzureComputeGalleryCopy/Services/Gallery/GalleryClientFactory.cs`
+- [x] T016 [US1] Implement query service to enumerate definitions/versions in `src/AzureComputeGalleryCopy/Services/Gallery/GalleryQueryService.cs`
+- [x] T017 [US1] Implement copy service (definitions + versions, idempotent) in `src/AzureComputeGalleryCopy/Services/Gallery/GalleryCopyService.cs`
+- [x] T018 [US1] Implement immutable-attribute checks + region availability checks in `src/AzureComputeGalleryCopy/Services/Gallery/GalleryCopyService.cs`
+- [x] T019 [US1] Implement `copy` command options and binding in `src/AzureComputeGalleryCopy/Cli/CopyCommand.cs`
+- [x] T020 [P] [US1] Wire command handler to services/DI in `src/AzureComputeGalleryCopy/Program.cs`
+- [x] T021 [P] [US1] Implement copy summary printer and exit codes in `src/AzureComputeGalleryCopy/Cli/Output/SummaryPrinter.cs`
 
 Tests (unit):
-- [ ] T022 [P] [US1] Tests for `GalleryQueryService` enumeration in `tests/AzureComputeGalleryCopy.Tests/Services/Gallery/GalleryQueryServiceTests.cs`
-- [ ] T023 [P] [US1] Tests for `GalleryCopyService` idempotency and immutable mismatch in `tests/AzureComputeGalleryCopy.Tests/Services/Gallery/GalleryCopyServiceTests.cs`
-- [ ] T024 [P] [US1] Tests for `copy` command parsing and binding in `tests/AzureComputeGalleryCopy.Tests/Cli/CopyCommandTests.cs`
+- [x] T022 [P] [US1] Tests for `GalleryQueryService` enumeration in `tests/AzureComputeGalleryCopy.Tests/Services/Gallery/GalleryQueryServiceTests.cs`
+- [x] T023 [P] [US1] Tests for `GalleryCopyService` idempotency and immutable mismatch in `tests/AzureComputeGalleryCopy.Tests/Services/Gallery/GalleryCopyServiceTests.cs`
+- [x] T024 [P] [US1] Tests for `copy` command parsing and binding in `tests/AzureComputeGalleryCopy.Tests/Cli/CopyCommandTests.cs`
+
+Notes:
+- すべてのテストが成功し、ビルド警告のうち ConsoleLoggerOptions 非推奨は SimpleConsoleFormatter へ移行して解消。
+- `CopyCommand` の `matchMode` は null セーフにし、ギャラリー名のログは ARM ID から抽出する実装へ統一。
+- `MSB3277` 警告は、不要な `UseWindowsForms` および `Microsoft.Web.WebView2` 参照を削除することで根本的に解消（抑制なし）。
 
 ## Phase 4: User Story 2 (P2) — 条件付きコピー（フィルタ）
 

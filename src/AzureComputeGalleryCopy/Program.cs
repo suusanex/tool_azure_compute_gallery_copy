@@ -1,6 +1,7 @@
 // Entry point for Azure Compute Gallery Copy CLI tool
 // エントリーポイント: Azure Compute Gallery クロスサブスクリプション コピー ツール
 
+using System.CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,6 +9,10 @@ using AzureComputeGalleryCopy.Configuration;
 using AzureComputeGalleryCopy.Logging;
 using AzureComputeGalleryCopy.Services.Authentication;
 using AzureComputeGalleryCopy.Validation;
+using AzureComputeGalleryCopy.Services.Gallery;
+using AzureComputeGalleryCopy.Cli;
+using AzureComputeGalleryCopy.Cli.Output;
+using Azure.Identity;
 
 namespace AzureComputeGalleryCopy;
 
@@ -60,33 +65,45 @@ class Program
             services.AddSingleton<IAuthenticator>(_ => 
                 new WebView2Authenticator(toolConfig.Authentication));
             services.AddSingleton<ILoggerFactoryBuilder, LoggerFactoryBuilder>();
+            
+            // T020, T021: Gallery services DI登録
+            services.AddSingleton<IGalleryClientFactory, GalleryClientFactory>();
+            services.AddSingleton<IGalleryQueryService, GalleryQueryService>();
+            services.AddSingleton<IGalleryCopyService, GalleryCopyService>();
+            services.AddSingleton<CopyCommand>();
+            services.AddSingleton<SummaryPrinter>();
 
             var serviceProvider = services.BuildServiceProvider();
 
             logger.LogInformation("Azure Compute Gallery Copy Tool started");
-            logger.LogInformation("Source: {Subscription}/{ResourceGroup}/{Gallery}",
-                toolConfig.Source.SubscriptionId, toolConfig.Source.ResourceGroupName,
-                toolConfig.Source.GalleryName);
-            logger.LogInformation("Target: {Subscription}/{ResourceGroup}/{Gallery}",
-                toolConfig.Target.SubscriptionId, toolConfig.Target.ResourceGroupName,
-                toolConfig.Target.GalleryName);
 
-            // ヘルプメッセージを表示（CLI実装は Phase 3 以降）
-            Console.WriteLine("Azure Compute Gallery Cross-Subscription Copy Tool");
-            Console.WriteLine("\nUsage:");
-            Console.WriteLine("  acg-copy [command] [options]");
-            Console.WriteLine("\nCommands:");
-            Console.WriteLine("  copy      - Copy images from source to target gallery");
-            Console.WriteLine("  list      - List resources in a gallery");
-            Console.WriteLine("  validate  - Validate configuration");
-            Console.WriteLine("\nOptions:");
-            Console.WriteLine("  -c, --config    <path>   Path to configuration file");
-            Console.WriteLine("  -l, --log-level <level>  Log level (default: Information)");
-            Console.WriteLine("  -h, --help               Show help");
-            Console.WriteLine("  -v, --version            Show version");
+            // T020: CLI root command setup
+            var rootCommand = new RootCommand("Azure Compute Gallery Cross-Subscription Copy Tool");
+            
+            // Global options
+            var configOption = new Option<string?>("--config", "-c")
+            {
+                Description = "Path to configuration file (default: appsettings.json)",
+                Required = false
+            };
+            
+            var logLevelOption = new Option<string?>("--log-level", "-l")
+            {
+                Description = "Log level (Trace, Debug, Information, Warning, Error, Critical)",
+                Required = false
+            };
+
+            rootCommand.Add(configOption);
+            rootCommand.Add(logLevelOption);
+
+            // T019: Register copy command
+            var copyCommandHandler = serviceProvider.GetRequiredService<CopyCommand>();
+            rootCommand.Add(copyCommandHandler.CreateCommand());
 
             logger.LogInformation("CLI root command initialized");
-            return 0;
+
+          // Execute the command (System.CommandLine beta pattern: Parse -> InvokeAsync)
+          return await rootCommand.Parse(args).InvokeAsync();
         }
         catch (Exception ex)
         {

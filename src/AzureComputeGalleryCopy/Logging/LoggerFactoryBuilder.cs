@@ -29,9 +29,9 @@ public class LoggerFactoryBuilder : ILoggerFactoryBuilder
 
             if (useConsole)
             {
-                builder.AddConsole(options =>
+                // 非推奨オプション (ConsoleLoggerOptions) を避けるため SimpleConsoleFormatter を使用
+                builder.AddSimpleConsole(options =>
                 {
-                    // コンソール出力の設定
                     options.IncludeScopes = true;
                     options.UseUtcTimestamp = true;
                     options.TimestampFormat = "yyyy-MM-dd HH:mm:ss.fff";
